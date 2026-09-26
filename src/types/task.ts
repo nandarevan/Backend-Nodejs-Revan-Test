@@ -1,15 +1,7 @@
-export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
-export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+import { TaskStatus, TaskPriority, Task as PrismaTask } from '@prisma/client';
 
-export interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  createdAt: string;
-  updatedAt: string;
-}
+export { TaskStatus, TaskPriority };
+export type Task = PrismaTask;
 
 export interface CreateTaskDto {
   title: string;
@@ -23,8 +15,4 @@ export interface UpdateTaskDto {
   description?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
-}
-
-export interface UpdateStatusDto {
-  status: TaskStatus;
 }

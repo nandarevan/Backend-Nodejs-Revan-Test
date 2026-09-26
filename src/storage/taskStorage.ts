@@ -1,103 +1,75 @@
-import fs from 'fs/promises';
-import path from 'path';
-import crypto from 'crypto';
-import { Task, CreateTaskDto, UpdateTaskDto, TaskStatus, TaskPriority } from '../types/task.js';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const FILE_PATH = path.join(DATA_DIR, 'tasks.json');
-
-const initialTasks: Task[] = [
-  {
-    id: 'f83a4848-3112-4217-91a7-19e489c7ad12',
-    title: 'Design API Architecture',
-    description: 'Define REST API endpoints, entity schemas, and HTTP status handling.',
-    status: 'COMPLETED',
-    priority: 'HIGH',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'c29b7194-68ab-4f1b-871d-55e1c4b7890a',
-    title: 'Implement Task Management API',
-    description: 'Build CRUD endpoints using Express and TypeScript.',
-    status: 'IN_PROGRESS',
-    priority: 'HIGH',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
+import { prisma } from '../prisma.js';
+import { Task, CreateTaskDto, UpdateTaskDto, TaskStatus } from '../types/task.js';
 
 export class TaskStorage {
-  private static async ensureFileExists(): Promise<void> {
+  private static async seedInitialData(): Promise<void> {
     try {
-      await fs.mkdir(DATA_DIR, { recursive: true });
-      try {
-        await fs.access(FILE_PATH);
-      } catch {
-        await fs.writeFile(FILE_PATH, JSON.stringify(initialTasks, null, 2), 'utf-8');
+      const count = await prisma.task.count();
+      if (count === 0) {
+        await prisma.task.createMany({
+          data: [
+            {
+              id: 'f83a4848-3112-4217-91a7-19e489c7ad12',
+              title: 'Design API Architecture',
+              description: 'Define REST API endpoints, entity schemas, and HTTP status handling.',
+              status: TaskStatus.COMPLETED,
+              priority: 'HIGH'
+            },
+            {
+              id: 'c29b7194-68ab-4f1b-871d-55e1c4b7890a',
+              title: 'Implement Task Management API',
+              description: 'Build CRUD endpoints using Express, TypeScript, and PostgreSQL.',
+              status: TaskStatus.IN_PROGRESS,
+              priority: 'HIGH'
+            }
+          ]
+        });
       }
     } catch (error) {
-      console.error('Failed to initialize task storage file:', error);
+      console.error('Error seeding initial data:', error);
     }
   }
 
   public static async getAll(): Promise<Task[]> {
-    await this.ensureFileExists();
-    try {
-      const data = await fs.readFile(FILE_PATH, 'utf-8');
-      return JSON.parse(data) as Task[];
-    } catch (error) {
-      console.error('Error reading tasks file:', error);
-      return [];
-    }
+    await this.seedInitialData();
+    return prisma.task.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
   }
 
   public static async getById(id: string): Promise<Task | null> {
-    const tasks = await this.getAll();
-    const task = tasks.find(t => t.id === id);
-    return task || null;
+    await this.seedInitialData();
+    return prisma.task.findUnique({
+      where: { id }
+    });
   }
 
   public static async create(dto: CreateTaskDto): Promise<Task> {
-    const tasks = await this.getAll();
-    const now = new Date().toISOString();
-
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      title: dto.title.trim(),
-      description: dto.description.trim(),
-      status: dto.status || 'PENDING',
-      priority: dto.priority || 'MEDIUM',
-      createdAt: now,
-      updatedAt: now
-    };
-
-    tasks.push(newTask);
-    await fs.writeFile(FILE_PATH, JSON.stringify(tasks, null, 2), 'utf-8');
-    return newTask;
+    return prisma.task.create({
+      data: {
+        title: dto.title.trim(),
+        description: dto.description.trim(),
+        status: dto.status || TaskStatus.PENDING,
+        priority: dto.priority || 'MEDIUM'
+      }
+    });
   }
 
   public static async update(id: string, dto: UpdateTaskDto): Promise<Task | null> {
-    const tasks = await this.getAll();
-    const index = tasks.findIndex(t => t.id === id);
-
-    if (index === -1) {
+    const existing = await this.getById(id);
+    if (!existing) {
       return null;
     }
 
-    const currentTask = tasks[index];
-    const updatedTask: Task = {
-      ...currentTask,
-      title: dto.title !== undefined ? dto.title.trim() : currentTask.title,
-      description: dto.description !== undefined ? dto.description.trim() : currentTask.description,
-      status: dto.status !== undefined ? dto.status : currentTask.status,
-      priority: dto.priority !== undefined ? dto.priority : currentTask.priority,
-      updatedAt: new Date().toISOString()
-    };
-
-    tasks[index] = updatedTask;
-    await fs.writeFile(FILE_PATH, JSON.stringify(tasks, null, 2), 'utf-8');
-    return updatedTask;
+    return prisma.task.update({
+      where: { id },
+      data: {
+        ...(dto.title !== undefined && { title: dto.title.trim() }),
+        ...(dto.description !== undefined && { description: dto.description.trim() }),
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.priority !== undefined && { priority: dto.priority })
+      }
+    });
   }
 
   public static async updateStatus(id: string, status: TaskStatus): Promise<Task | null> {
@@ -105,15 +77,14 @@ export class TaskStorage {
   }
 
   public static async delete(id: string): Promise<boolean> {
-    const tasks = await this.getAll();
-    const initialLength = tasks.length;
-    const filteredTasks = tasks.filter(t => t.id !== id);
-
-    if (filteredTasks.length === initialLength) {
+    const existing = await this.getById(id);
+    if (!existing) {
       return false;
     }
 
-    await fs.writeFile(FILE_PATH, JSON.stringify(filteredTasks, null, 2), 'utf-8');
+    await prisma.task.delete({
+      where: { id }
+    });
     return true;
   }
 }
