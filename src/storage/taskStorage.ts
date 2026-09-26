@@ -6,7 +6,6 @@ import { Task, CreateTaskDto, UpdateTaskDto, TaskStatus, TaskPriority } from '..
 const DATA_DIR = path.join(process.cwd(), 'data');
 const FILE_PATH = path.join(DATA_DIR, 'tasks.json');
 
-// Sample initial data if tasks.json does not exist
 const initialTasks: Task[] = [
   {
     id: 'f83a4848-3112-4217-91a7-19e489c7ad12',
