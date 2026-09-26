@@ -7,7 +7,6 @@ const VALID_STATUSES: TaskStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETED'];
 const VALID_PRIORITIES: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH'];
 
 export class TaskController {
-  // GET /api/tasks
   public static async getTasks(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       let tasks = await TaskStorage.getAll();
@@ -31,7 +30,6 @@ export class TaskController {
     }
   }
 
-  // GET /api/tasks/:id
   public static async getTaskById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
@@ -50,12 +48,10 @@ export class TaskController {
     }
   }
 
-  // POST /api/tasks
   public static async createTask(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { title, description, status, priority } = req.body;
 
-      // Request Validation
       if (!title || typeof title !== 'string' || title.trim() === '') {
         throw new AppError('Field "title" is required and must be a non-empty string', 400);
       }
@@ -89,19 +85,16 @@ export class TaskController {
     }
   }
 
-  // PUT /api/tasks/:id
   public static async updateTask(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const { title, description, status, priority } = req.body;
 
-      // Check existence
       const existingTask = await TaskStorage.getById(id);
       if (!existingTask) {
         throw new AppError(`Task with ID '${id}' not found`, 404);
       }
 
-      // Request Validation
       if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) {
         throw new AppError('Field "title" must be a non-empty string', 400);
       }
@@ -135,13 +128,11 @@ export class TaskController {
     }
   }
 
-  // PATCH /api/tasks/:id/status
   public static async updateTaskStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const { status } = req.body;
 
-      // Request Validation
       if (!status || typeof status !== 'string') {
         throw new AppError('Field "status" is required and must be a string', 400);
       }
@@ -151,7 +142,6 @@ export class TaskController {
         throw new AppError(`Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`, 400);
       }
 
-      // Check existence & update
       const updatedTask = await TaskStorage.updateStatus(id, formattedStatus);
       if (!updatedTask) {
         throw new AppError(`Task with ID '${id}' not found`, 404);
@@ -167,7 +157,6 @@ export class TaskController {
     }
   }
 
-  // DELETE /api/tasks/:id
   public static async deleteTask(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
